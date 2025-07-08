@@ -5,15 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>SWA Windapp – Schokkerhaven</title>
 
-  <!-- Tailwind CSS-CDN -->
+  <!-- TailwindCSS (één bestand, werkt direct op GitHub Pages) -->
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
 
-  <!-- Eigen kleuren / fonts -->
+  <!-- Kleuren & lettertypen -->
   <style>
     :root{
-      --brand:#0066B3;          /* blauw uit je screenshot */
+      --brand:#E71C1F;          /* fel rood voor accenten */
       --brand-dark:#000000;     /* zwart */
-      --bg:#f4f4f4;             /* lichtgrijs achtergrond */
+      --bg:#f4f4f4;             /* zachte achtergrond */
       --font-head:"Inter",system-ui,Helvetica,Arial,sans-serif;
       --font-body:"Inter",system-ui,Helvetica,Arial,sans-serif;
     }
@@ -22,7 +22,8 @@
 </head>
 
 <body class="min-h-screen flex flex-col items-center p-4">
-  <!-- HEADER ----------------------------------------------------------- -->
+
+  <!-- HEADER --------------------------------------------------------- -->
   <header class="w-full max-w-md text-center mb-6">
     <img src="Logo.png" alt="SWA-logo"
          class="mx-auto mb-2" style="max-height:110px;width:auto;object-fit:contain">
@@ -34,7 +35,7 @@
     </p>
   </header>
 
-  <!-- ACTUEEL ----------------------------------------------------------- -->
+  <!-- ACTUELE WIND --------------------------------------------------- -->
   <section id="current"
            class="w-full max-w-md bg-white rounded-2xl shadow p-4 mb-4 flex flex-col items-center gap-1">
     <h2 class="font-semibold" style="color:var(--brand)">
@@ -47,9 +48,9 @@
        class="uppercase tracking-widest text-sm text-slate-600">–</p>
   </section>
 
-  <!-- FORECAST-TABEL ---------------------------------------------------- -->
+  <!-- FORECAST ------------------------------------------------------- -->
   <section class="w-full max-w-md">
-    <!-- kopregel -->
+    <!-- tabelkop -->
     <div class="grid grid-cols-4 gap-2 text-center text-xs font-semibold text-white">
       <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)">Tijd</div>
       <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)">Weer</div>
@@ -59,44 +60,45 @@
            class="py-1 rounded-t-lg" style="background:var(--brand-dark)">HARM-NL</div>
     </div>
 
-    <!-- rijcontainer -->
+    <!-- rijen worden met JS gevuld -->
     <div id="forecastRows"
          class="grid grid-cols-4 gap-2 text-center bg-white rounded-b-2xl shadow"></div>
   </section>
 
-  <!-- FOUTMELDING ------------------------------------------------------- -->
+  <!-- foutmelding ----------------------------------------------------- -->
   <p id="err" class="hidden mt-6 text-sm text-red-600 text-center max-w-md"></p>
 
-  <!-- FOOTER ------------------------------------------------------------ -->
+  <!-- FOOTER ---------------------------------------------------------- -->
   <footer class="mt-6 text-[10px] text-slate-500">
     Weerdata: <a href="https://open-meteo.com" class="underline" style="color:var(--brand)">Open-Meteo.com</a>
   </footer>
 
-  <!-- JAVASCRIPT -------------------------------------------------------- -->
+  <!-- JAVASCRIPT ------------------------------------------------------ -->
   <script>
   (()=>{
-    /* LOCATIE & MODELLEN */
-    const lat = 52.613, lon = 5.747, tz = 'Europe/Amsterdam', hours = 8;
-    const model1 = 'icon_d2', m1Label = 'ICON-D2';
+    /* LOCATIE – Schokkerhaven */
+    const lat  = 52.613;
+    const lon  = 5.747;
+    const tz   = 'Europe/Amsterdam';
+    const hrs  = 8;                      // forecast-venster 8 u
+
+    /* MODELLEN */
+    const model1 = 'icon_d2',  m1Label = 'ICON-D2';
     const model2 = 'knmi_harmonie_arome_netherlands', m2Label = 'HARM-NL';
-    /* labels in kop */
     h2label.textContent = m1Label;
     h3label.textContent = m2Label;
 
-    /* tools */
-    const showErr = msg=>{
-      err.textContent = msg;
-      err.classList.remove('hidden');
-    };
+    /* HULPFUNCTIES */
+    const showErr = m=>{ err.textContent = m; err.classList.remove('hidden'); };
 
-    const degToCard = d=>{
+    const deg2card = d=>{
       const dirs = ["N","NNE","NE","ENE","E","ESE","SE","SSE",
                     "S","SSW","SW","WSW","W","WNW","NW","NNW"];
       return dirs[Math.round(d/22.5)%16];
     };
-    const fmtTime = s=>s.slice(11,16);
+    const tOnly = iso=>iso.slice(11,16);          // "2025-07-08T17:00" → "17:00"
 
-    const wxEmoji = code=>{
+    const wmo2emoji = code=>{
       if([0].includes(code)) return "☀️";
       if([1].includes(code)) return "🌤️";
       if([2].includes(code)) return "⛅";
@@ -108,59 +110,59 @@
       return "❓";
     };
 
-    /* ACTUEEL */
+    /* ACTUELE WIND --------------------------------------------------- */
     fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true&wind_speed_unit=kn&timezone=${tz}`)
-      .then(r=>{if(!r.ok)throw new Error('Actuele data niet beschikbaar');return r.json();})
+      .then(r=>{ if(!r.ok) throw new Error('Actuele data niet beschikbaar'); return r.json(); })
       .then(d=>{
         const c = d.current_weather;
         currSpeed.textContent = Math.round(c.windspeed);
-        currDir.textContent   = degToCard(c.winddirection);
-        currTime.textContent  = `(${fmtTime(c.time)})`;
+        currDir.textContent   = deg2card(c.winddirection);
+        currTime.textContent  = `(${tOnly(c.time)})`;
       })
       .catch(showErr);
 
-    /* FORECAST FUNCTIONS */
-    const wxFetch = ()=> fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weathercode&forecast_hours=${hours}&timezone=${tz}`
-    ).then(r=>{if(!r.ok)throw new Error('Weericoon-data niet beschikbaar');return r.json();});
+    /* API-CALL HELPERS ----------------------------------------------- */
+    const fetchWx = ()=> fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weathercode&forecast_hours=${hrs}&timezone=${tz}`
+    ).then(r=>{ if(!r.ok) throw new Error('Weericoon-data niet beschikbaar'); return r.json(); });
 
-    const fcFetch = model=> fetch(
+    const fetchFc = m=> fetch(
       `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`+
       `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m`+
-      `&wind_speed_unit=kn&forecast_hours=${hours}&models=${model}&timezone=${tz}`
-    ).then(r=>{if(!r.ok)throw new Error('Forecast-data niet beschikbaar');return r.json();});
+      `&wind_speed_unit=kn&forecast_hours=${hrs}&models=${m}&timezone=${tz}`
+    ).then(r=>{ if(!r.ok) throw new Error('Forecast-data niet beschikbaar'); return r.json(); });
 
-    /* DATA OPHALEN */
-    Promise.all([wxFetch(), fcFetch(model1), fcFetch(model2)])
-      .then(([wx,f1,f2])=>{
-        const rows = forecastRows;
-        const times = f1.hourly.time;         // 8 tijdstippen
+    /* DATA OPHALEN ---------------------------------------------------- */
+    Promise.all([ fetchWx(), fetchFc(model1), fetchFc(model2) ])
+      .then(([wx, f1, f2])=>{
+        const times = f1.hourly.time;
+        const rows  = forecastRows;
 
         for(let i=0;i<times.length;i++){
           /* tijd */
-          const t = document.createElement('div');
-          t.className = 'py-1 border-b'; t.textContent = fmtTime(times[i]);
-          rows.appendChild(t);
+          const d0 = document.createElement('div');
+          d0.className = 'py-1 border-b'; d0.textContent = tOnly(times[i]);
+          rows.appendChild(d0);
 
-          /* weericoon */
-          const ico = document.createElement('div');
-          ico.className = 'py-1 border-b'; ico.textContent = wxEmoji(wx.hourly.weathercode[i]);
-          rows.appendChild(ico);
+          /* icoon */
+          const d1 = document.createElement('div');
+          d1.className = 'py-1 border-b'; d1.textContent = wmo2emoji(wx.hourly.weathercode[i]);
+          rows.appendChild(d1);
 
-          /* wind + gust per model */
+          /* twee modellen */
           [f1,f2].forEach(f=>{
             const cell = document.createElement('div');
             cell.className = 'py-1 border-b leading-tight';
 
-            const kn   = Math.round(f.hourly.wind_speed_10m[i]);
-            const gust = f.hourly.wind_gusts_10m ? Math.round(f.hourly.wind_gusts_10m[i]) : '–';
-            const dir  = degToCard(f.hourly.wind_direction_10m[i]);
+            const v   = Math.round(f.hourly.wind_speed_10m[i]);
+            const g   = f.hourly.wind_gusts_10m ? Math.round(f.hourly.wind_gusts_10m[i]) : '–';
+            const dir = deg2card(f.hourly.wind_direction_10m[i]);
 
             cell.innerHTML =
-              `<span class="font-medium">${kn}</span>`+
+              `<span class="font-medium">${v}</span>`+
               `<span class="text-[10px] ml-1 text-slate-500">${dir}</span>`+
               `<br>`+
-              `<span class="text-xs font-semibold" style="color:var(--brand)">${gust}</span>`;
+              `<span class="text-xs font-semibold" style="color:var(--brand)">${g}</span>`;
             rows.appendChild(cell);
           });
         }
