@@ -24,9 +24,7 @@ body{font-family:var(--font);background:var(--bg);}
 </header>
 
 <section id="current" class="w-full max-w-md bg-white rounded-2xl shadow p-4 mb-4 flex flex-col items-center gap-1">
-  <h2 class="font-semibold" style="color:var(--brand)">
-    Huidig <span id="currTime" class="text-xs text-slate-500"></span>
-  </h2>
+  <h2 class="font-semibold" style="color:var(--brand)">Huidig&nbsp;<span id="currTime" class="text-xs text-slate-500"></span></h2>
   <p id="currLine" class="text-2xl font-bold">–</p>
   <p id="currDir" class="uppercase tracking-widest text-sm text-slate-600">–</p>
 </section>
@@ -50,66 +48,88 @@ body{font-family:var(--font);background:var(--bg);}
 <script>
 (()=>{
 /* ---------------- CONFIG ---------------- */
-const WEERLIVE_KEY = "320a946057";          // jouw key
-const LIVE_LOC     = "Marknesse";
+const WEERLIVE_KEY="320a946057";          // ← jouw key
+const LIVE_LOC   ="Marknesse";
 
 const lat=52.613, lon=5.747, tz="Europe/Amsterdam", hours=8;
-const model1="icon_d2", m1Label="ICON-D2";
-const model2="knmi_harmonie_arome_netherlands", m2Label="HARM-NL";
-h2label.textContent=m1Label; h3label.textContent=m2Label;
+const model1="icon_d2", model2="knmi_harmonie_arome_netherlands";
+h2label.textContent="ICON-D2"; h3label.textContent="HARM-NL";
 
 /* ---------------- HELPERS --------------- */
-const $ = q=>document.querySelector(q);
 const showErr=m=>{ err.textContent=m; err.classList.remove("hidden"); };
 
-const degCard=d=>{
+const deg2card=d=>{
   const dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
   return dirs[Math.round(d/22.5)%16];
 };
-const tOnly=s=>s.slice(11,16);
-const wmoEmoji=c=>{
-  if([0].includes(c)) return "☀️";
-  if([1].includes(c)) return "🌤️";
-  if([2].includes(c)) return "⛅";
-  if([3].includes(c)) return "☁️";
-  if([45,48].includes(c)) return "🌫️";
-  if([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(c)) return "🌧️";
-  if([71,73,75,77,85,86].includes(c)) return "❄️";
-  if([95,96,99].includes(c)) return "⛈️";
-  return "❓";
-};
+const hhmm=s=>s.slice(11,16);
+const wmo=c=>[["☀️"],["🌤️"],["⛅"],["☁️"],[],[],[],[],[],[],[],[],[],[],[],[],[],[],["🌫️"],["🌫️"]][c]||(
+  [51,53,55,56,57,61,63,65,66,67,80,81,82].includes(c)?"🌧️":
+  [71,73,75,77,85,86].includes(c)?"❄️":
+  [95,96,99].includes(c)?"⛈️":"❓");
 
-/* ---------------- FETCH HELPERS ---------- */
-const liveURL = `https://weerlive.nl/api/weerlive_api_v2.php?key=${WEERLIVE_KEY}&locatie=${encodeURIComponent(LIVE_LOC)}`;
+/* ---------------- MAIN FN --------------- */
+async function init(){
+  /* ---- 1. probeer Weerlive ---- */
+  let liveOK=false;
+  try{
+    const wl=await fetch(`https://weerlive.nl/api/weerlive_api_v2.php?key=${WEERLIVE_KEY}&locatie=${encodeURIComponent(LIVE_LOC)}`).then(r=>r.json());
+    const l=wl.liveweer?.[0];
+    if(l){
+      const v=Math.round(parseFloat(l.windknp));
+      const g=parseFloat(l.windknpmax);
+      const gust=Number.isNaN(g)?null:Math.round(g);
+      currLine.innerHTML = gust!==null
+        ? `${v} kn <span class="text-lg font-semibold" style="color:var(--brand)">(${gust} kn)</span>`
+        : `${v} kn`;
+      currDir.textContent=l.windr.toUpperCase();
+      currTime.textContent=`(${l.time})`;
+      liveOK=true;
+    }
+  }catch{ /* fall back below */ }
 
-const wxURL   = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weathercode&forecast_hours=${hours}&timezone=${tz}`;
-const fcURL   = m=>`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&forecast_hours=${hours}&models=${m}&timezone=${tz}`;
+  /* ---- 2. fallback naar Open-Meteo current_weather ---- */
+  if(!liveOK){
+    console.info("fallback to Open-Meteo live");
+    const om=await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`+
+      `&hourly=wind_gusts_10m&wind_speed_unit=kn&forecast_hours=1&timezone=${tz}`
+    ).then(r=>r.json());
+    const v = Math.round(om.current_weather.windspeed);
+    const g = Math.round(om.hourly.wind_gusts_10m[0]);
+    currLine.innerHTML=`${v} kn <span class="text-lg font-semibold" style="color:var(--brand)">(${g} kn)</span>`;
+    currDir.textContent=deg2card(om.current_weather.winddirection);
+    currTime.textContent=`(${hhmm(om.current_weather.time)})`;
+  }
 
-/* ---------------- MAIN ------------------- */
-Promise.all([
-  fetch(liveURL).then(r=>r.json()),
-  fetch(wxURL).then(r=>r.json()),
-  fetch(fcURL(model1)).then(r=>r.json()),
-  fetch(fcURL(model2)).then(r=>r.json())
-]).then(([liveJson, wx, f1, f2])=>{
-  /* ---- Live block ---- */
-  const live = liveJson.liveweer?.[0];
-  if(!live) throw new Error("Geen live-data");
+  /* ---- 3. forecast ---- */
+  const [wx,f1,f2]=await Promise.all([
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weathercode&forecast_hours=${hours}&timezone=${tz}`).then(r=>r.json()),
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&forecast_hours=${hours}&models=${model1}&timezone=${tz}`).then(r=>r.json()),
+    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&forecast_hours=${hours}&models=${model2}&timezone=${tz}`).then(r=>r.json())
+  ]);
 
-  const v   = Math.round(parseFloat(live.windknp));
-  const gRaw= (live.windknpmax||"").trim();
-  const gNum= parseFloat(gRaw);
-  const gustOk=!Number.isNaN(gNum);
+  const rows=document.getElementById("forecastRows");
+  for(let i=0;i<hours;i++){
+    rows.insertAdjacentHTML("beforeend",`
+      <div class="py-1 border-b">${hhmm(f1.hourly.time[i])}</div>
+      <div class="py-1 border-b">${wmo(wx.hourly.weathercode[i])}</div>
+      ${[f1,f2].map(f=>{
+        const v=Math.round(f.hourly.wind_speed_10m[i]);
+        const g=Math.round(f.hourly.wind_gusts_10m[i]);
+        const d=deg2card(f.hourly.wind_direction_10m[i]);
+        return `<div class="py-1 border-b leading-tight">
+                  <span class="font-medium">${v}</span>
+                  <span class="text-[10px] ml-1 text-slate-500">${d}</span><br>
+                  <span class="text-xs font-semibold" style="color:var(--brand)">${g}</span>
+                </div>`;
+      }).join("")}
+    `);
+  }
+}
 
-  /* fallback: als gust niet in live zit → neem eerste uur uit ICON-D2 */
-  const fallbackGust = Math.round(f1.hourly.wind_gusts_10m[0]);
-  const gustFinal = gustOk ? gNum : fallbackGust;
-
-  const gustHTML = `<span class="text-lg font-semibold" style="color:var(--brand)">(${gustFinal} kn)</span>`;
-
-  currLine.innerHTML = `${v} kn ${gustHTML}`;
-  currDir.textContent= live.windr.toUpperCase();
-  currTime.textContent=`(${live.time})`;
-
-  /* ---- Forecast table ---- */
-  const rows=$("#forecastRows"
+init().catch(e=>showErr(e.message));
+})();
+</script>
+</body>
+</html>
