@@ -6,11 +6,10 @@
   <title>SWA Windapp – Schokkerhaven</title>
   <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
 
-  <!-- Kleuren uit het logo -->
   <style>
     :root{
-      --brand:#E71C1F;          /* rood */
-      --brand-dark:#000000;     /* zwart */
+      --brand:#E71C1F;
+      --brand-dark:#000000;
       --bg:#f4f4f4;
       --font-head:"Inter",system-ui,Helvetica,Arial,sans-serif;
       --font-body:"Inter",system-ui,Helvetica,Arial,sans-serif;
@@ -28,7 +27,7 @@
     <p class="text-sm text-slate-600">Wind • Schokkerhaven – live + 8&nbsp;u forecast</p>
   </header>
 
-  <!-- Actuele wind -->
+  <!-- Actueel -->
   <section id="current"
            class="w-full max-w-md bg-white rounded-2xl shadow p-4 mb-4 flex flex-col items-center gap-1">
     <h2 class="font-semibold" style="color:var(--brand)">
@@ -40,19 +39,16 @@
 
   <!-- Forecast tabel -->
   <section id="tableWrap" class="w-full max-w-md">
-    <!-- Kop -->
     <div class="grid grid-cols-4 gap-2 text-center text-xs font-semibold text-white">
       <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)">Tijd</div>
       <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)">Weer</div>
       <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)" id="h2label">ICON-D2</div>
       <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)" id="h3label">HARM-NL</div>
     </div>
-    <!-- Rij-container -->
     <div id="forecastRows"
          class="grid grid-cols-4 gap-2 text-center bg-white rounded-b-2xl shadow"></div>
   </section>
 
-  <!-- Foutmelding -->
   <p id="err" class="hidden mt-6 text-sm text-red-600 text-center max-w-md"></p>
 
   <footer class="mt-6 text-[10px] text-slate-500">
@@ -63,14 +59,13 @@
   <script>
   (()=>{
 
-    /* Instellingen */
+    /* Locatie & modellen */
     const lat=52.613, lon=5.747, tz='Europe/Amsterdam', hours=8;
     const model1='icon_d2', m1Label='ICON-D2';
     const model2='knmi_harmonie_arome_netherlands', m2Label='HARM-NL';
     document.getElementById('h2label').textContent=m1Label;
     document.getElementById('h3label').textContent=m2Label;
 
-    /* Fouthelper */
     const showErr=msg=>{
       const el=document.getElementById('err'); el.textContent=msg; el.classList.remove('hidden');
     };
@@ -110,13 +105,13 @@
         .then(r=>{if(!r.ok)throw new Error('Weericoon-data niet beschikbaar');return r.json();});
 
     const getFc=model=>
-      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m&wind_speed_unit=kn&forecast_hours=${hours}&models=${model}&timezone=${tz}`)
+      fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&forecast_hours=${hours}&models=${model}&timezone=${tz}`)
         .then(r=>{if(!r.ok)throw new Error('Forecast-data niet beschikbaar');return r.json();});
 
-    /* Alle data parallel laden */
+    /* Data laden */
     Promise.all([getWx(), getFc(model1), getFc(model2)])
       .then(([wx,f1,f2])=>{
-        const times=f1.hourly.time;           // 8 tijdstippen
+        const times=f1.hourly.time;
         const rows=document.getElementById('forecastRows');
 
         for(let i=0;i<times.length;i++){
@@ -125,18 +120,23 @@
           t.className="py-1 border-b"; t.textContent=fmtTime(times[i]);
           rows.appendChild(t);
 
-          /* Weer-icoon */
+          /* Weericoon */
           const w=document.createElement('div');
           w.className="py-1 border-b"; w.textContent=wxIcon(wx.hourly.weathercode[i]);
           rows.appendChild(w);
 
-          /* Windcellen */
+          /* Wind + gust */
           [f1,f2].forEach(f=>{
             const c=document.createElement('div');
-            c.className="py-1 border-b";
-            const kn=Math.round(f.hourly.wind_speed_10m[i]);
-            const dir=degToCard(f.hourly.wind_direction_10m[i]);
-            c.innerHTML=`<span class="font-medium">${kn}</span><span class="text-[10px] ml-1 text-slate-500">${dir}</span>`;
+            c.className="py-1 border-b leading-tight";
+            const kn  = Math.round(f.hourly.wind_speed_10m[i]);
+            const g   = f.hourly.wind_gusts_10m ? Math.round(f.hourly.wind_gusts_10m[i]) : '–';
+            const dir = degToCard(f.hourly.wind_direction_10m[i]);
+            c.innerHTML =
+              `<span class="font-medium">${kn}</span>`+
+              `<span class="text-[10px] ml-1 text-slate-500">${dir}</span>`+
+              `<br>`+
+              `<span class="text-xs font-semibold" style="color:var(--brand)">G${g}</span>`;
             rows.appendChild(c);
           });
         }
