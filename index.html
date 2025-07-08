@@ -1,174 +1,115 @@
 <!DOCTYPE html>
 <html lang="nl">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>SWA Windapp – Schokkerhaven</title>
-
-  <!-- Tailwind -->
-  <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
-
-  <style>
-    :root{
-      --brand:#E71C1F;
-      --brand-dark:#000000;
-      --bg:#f4f4f4;
-      --font:"Inter",system-ui,Helvetica,Arial,sans-serif;
-    }
-    body{font-family:var(--font);background:var(--bg);}
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SWA Windapp – Schokkerhaven</title>
+<script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+<style>
+:root{
+  --brand:#E71C1F;
+  --brand-dark:#000000;
+  --bg:#f4f4f4;
+  --font:"Inter",system-ui,Helvetica,Arial,sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);}
+</style>
 </head>
-
 <body class="min-h-screen flex flex-col items-center p-4">
 
-  <!-- HEADER -->
-  <header class="w-full max-w-md text-center mb-6">
-    <img src="Logo.png" alt="SWA-logo"
-         class="mx-auto mb-2" style="max-height:110px;width:auto;object-fit:contain">
-    <h1 class="text-3xl font-bold tracking-tight" style="color:var(--brand)">
-      SWA Windapp
-    </h1>
-    <p class="text-sm text-slate-600">
-      Wind • Schokkerhaven – live + 8 u forecast
-    </p>
-  </header>
+<header class="w-full max-w-md text-center mb-6">
+  <img src="Logo.png" alt="SWA-logo" class="mx-auto mb-2" style="max-height:110px;width:auto;object-fit:contain">
+  <h1 class="text-3xl font-bold tracking-tight" style="color:var(--brand)">SWA Windapp</h1>
+  <p class="text-sm text-slate-600">Wind • Schokkerhaven – live + 8 u forecast</p>
+</header>
 
-  <!-- ACTUEEL -->
-  <section id="current"
-           class="w-full max-w-md bg-white rounded-2xl shadow p-4 mb-4 flex flex-col items-center gap-1">
-    <h2 class="font-semibold" style="color:var(--brand)">
-      Huidig&nbsp;<span id="currTime" class="text-xs text-slate-500"></span>
-    </h2>
+<section id="current" class="w-full max-w-md bg-white rounded-2xl shadow p-4 mb-4 flex flex-col items-center gap-1">
+  <h2 class="font-semibold" style="color:var(--brand)">
+    Huidig <span id="currTime" class="text-xs text-slate-500"></span>
+  </h2>
+  <p id="currLine" class="text-2xl font-bold">–</p>
+  <p id="currDir" class="uppercase tracking-widest text-sm text-slate-600">–</p>
+</section>
 
-    <!-- GEM. WIND + GUST IN ÉÉN REGEL -->
-    <p class="text-2xl font-bold">
-      <span id="currSpeed">–</span>&nbsp;kn
-      <span class="text-lg font-semibold text-[color:var(--brand)]">
-        &nbsp;(<span id="currGust">–</span>&nbsp;kn)
-      </span>
-    </p>
+<section class="w-full max-w-md">
+  <div class="grid grid-cols-4 gap-2 text-center text-xs font-semibold text-white">
+    <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)">Tijd</div>
+    <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)">Weer</div>
+    <div id="h2label" class="py-1 rounded-t-lg" style="background:var(--brand-dark)">ICON-D2</div>
+    <div id="h3label" class="py-1 rounded-t-lg" style="background:var(--brand-dark)">HARM-NL</div>
+  </div>
+  <div id="forecastRows" class="grid grid-cols-4 gap-2 text-center bg-white rounded-b-2xl shadow"></div>
+</section>
 
-    <!-- RICHTING -->
-    <p id="currDir"
-       class="uppercase tracking-widest text-sm text-slate-600">–</p>
-  </section>
+<p id="err" class="hidden mt-6 text-sm text-red-600 text-center max-w-md"></p>
 
-  <!-- FORECAST -->
-  <section class="w-full max-w-md">
-    <div class="grid grid-cols-4 gap-2 text-center text-xs font-semibold text-white">
-      <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)">Tijd</div>
-      <div class="py-1 rounded-t-lg" style="background:var(--brand-dark)">Weer</div>
-      <div id="h2label"
-           class="py-1 rounded-t-lg" style="background:var(--brand-dark)">ICON-D2</div>
-      <div id="h3label"
-           class="py-1 rounded-t-lg" style="background:var(--brand-dark)">HARM-NL</div>
-    </div>
-    <div id="forecastRows"
-         class="grid grid-cols-4 gap-2 text-center bg-white rounded-b-2xl shadow"></div>
-  </section>
+<footer class="mt-6 text-[10px] text-slate-500">
+  Weerdata: KNMI via <a href="https://weerlive.nl" class="underline">Weerlive</a> • Forecast via <a href="https://open-meteo.com" class="underline">Open-Meteo</a>
+</footer>
 
-  <!-- FOUT -->
-  <p id="err" class="hidden mt-6 text-sm text-red-600 text-center max-w-md"></p>
+<script>
+(()=>{
+/* ---------------- CONFIG ---------------- */
+const WEERLIVE_KEY = "320a946057";          // jouw key
+const LIVE_LOC     = "Marknesse";
 
-  <!-- FOOTER -->
-  <footer class="mt-6 text-[10px] text-slate-500">
-    Weerdata: live KNMI via <a href="https://weerlive.nl" class="underline">Weerlive.nl</a> &nbsp;•&nbsp;
-    Forecast via <a href="https://open-meteo.com" class="underline">Open-Meteo.com</a>
-  </footer>
+const lat=52.613, lon=5.747, tz="Europe/Amsterdam", hours=8;
+const model1="icon_d2", m1Label="ICON-D2";
+const model2="knmi_harmonie_arome_netherlands", m2Label="HARM-NL";
+h2label.textContent=m1Label; h3label.textContent=m2Label;
 
-  <!-- JAVASCRIPT -->
-  <script>
-  (()=>{
-    /* ---------- CONFIG ---------- */
-    const weerliveKey = '320a946057';          // ← jouw Weerlive-sleutel
-    const locLive     = 'Marknesse';
+/* ---------------- HELPERS --------------- */
+const $ = q=>document.querySelector(q);
+const showErr=m=>{ err.textContent=m; err.classList.remove("hidden"); };
 
-    const lat = 52.613, lon = 5.747;           // forecastlocatie
-    const tz  = 'Europe/Amsterdam', hrs = 8;
+const degCard=d=>{
+  const dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE","S","SSW","SW","WSW","W","WNW","NW","NNW"];
+  return dirs[Math.round(d/22.5)%16];
+};
+const tOnly=s=>s.slice(11,16);
+const wmoEmoji=c=>{
+  if([0].includes(c)) return "☀️";
+  if([1].includes(c)) return "🌤️";
+  if([2].includes(c)) return "⛅";
+  if([3].includes(c)) return "☁️";
+  if([45,48].includes(c)) return "🌫️";
+  if([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(c)) return "🌧️";
+  if([71,73,75,77,85,86].includes(c)) return "❄️";
+  if([95,96,99].includes(c)) return "⛈️";
+  return "❓";
+};
 
-    const model1='icon_d2',  m1Label='ICON-D2';
-    const model2='knmi_harmonie_arome_netherlands', m2Label='HARM-NL';
-    h2label.textContent = m1Label;
-    h3label.textContent = m2Label;
+/* ---------------- FETCH HELPERS ---------- */
+const liveURL = `https://weerlive.nl/api/weerlive_api_v2.php?key=${WEERLIVE_KEY}&locatie=${encodeURIComponent(LIVE_LOC)}`;
 
-    /* ---------- HELPERS ---------- */
-    const showErr = m=>{ err.textContent=m; err.classList.remove('hidden'); };
+const wxURL   = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weathercode&forecast_hours=${hours}&timezone=${tz}`;
+const fcURL   = m=>`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m&wind_speed_unit=kn&forecast_hours=${hours}&models=${m}&timezone=${tz}`;
 
-    const deg2card = d=>{
-      const dirs=["N","NNE","NE","ENE","E","ESE","SE","SSE",
-                  "S","SSW","SW","WSW","W","WNW","NW","NNW"];
-      return dirs[Math.round(d/22.5)%16];
-    };
-    const tOnly = iso=>iso.slice(11,16);
+/* ---------------- MAIN ------------------- */
+Promise.all([
+  fetch(liveURL).then(r=>r.json()),
+  fetch(wxURL).then(r=>r.json()),
+  fetch(fcURL(model1)).then(r=>r.json()),
+  fetch(fcURL(model2)).then(r=>r.json())
+]).then(([liveJson, wx, f1, f2])=>{
+  /* ---- Live block ---- */
+  const live = liveJson.liveweer?.[0];
+  if(!live) throw new Error("Geen live-data");
 
-    const wmo2emo = c=>{
-      if([0].includes(c)) return "☀️";
-      if([1].includes(c)) return "🌤️";
-      if([2].includes(c)) return "⛅";
-      if([3].includes(c)) return "☁️";
-      if([45,48].includes(c)) return "🌫️";
-      if([51,53,55,56,57,61,63,65,66,67,80,81,82].includes(c)) return "🌧️";
-      if([71,73,75,77,85,86].includes(c)) return "❄️";
-      if([95,96,99].includes(c)) return "⛈️";
-      return "❓";
-    };
+  const v   = Math.round(parseFloat(live.windknp));
+  const gRaw= (live.windknpmax||"").trim();
+  const gNum= parseFloat(gRaw);
+  const gustOk=!Number.isNaN(gNum);
 
-    /* ---------- LIVE DATA (KNMI) ---------- */
-    fetch(`https://weerlive.nl/api/weerlive_api_v2.php?key=${weerliveKey}&locatie=${encodeURIComponent(locLive)}`)
-      .then(r=>r.json())
-      .then(d=>{
-        const live = d.liveweer?.[0];
-        if(!live) throw new Error('Geen live data');
-        currSpeed.textContent = Math.round(parseFloat(live.windknp));
-        currGust.textContent  = Math.round(parseFloat(live.windknpmax));
-        currDir.textContent   = live.windr.toUpperCase();
-        currTime.textContent  = `(${live.time})`;
-      })
-      .catch(showErr);
+  /* fallback: als gust niet in live zit → neem eerste uur uit ICON-D2 */
+  const fallbackGust = Math.round(f1.hourly.wind_gusts_10m[0]);
+  const gustFinal = gustOk ? gNum : fallbackGust;
 
-    /* ---------- FORECAST (Open-Meteo) ----- */
-    const wxFetch = ()=> fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`+
-      `&hourly=weathercode&forecast_hours=${hrs}&timezone=${tz}`
-    ).then(r=>{if(!r.ok)throw new Error('Weericoon-data niet beschikbaar');return r.json();});
+  const gustHTML = `<span class="text-lg font-semibold" style="color:var(--brand)">(${gustFinal} kn)</span>`;
 
-    const fcFetch = m=> fetch(
-      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`+
-      `&hourly=wind_speed_10m,wind_direction_10m,wind_gusts_10m`+
-      `&wind_speed_unit=kn&forecast_hours=${hrs}&models=${m}&timezone=${tz}`
-    ).then(r=>{if(!r.ok)throw new Error('Forecast-data niet beschikbaar');return r.json();});
+  currLine.innerHTML = `${v} kn ${gustHTML}`;
+  currDir.textContent= live.windr.toUpperCase();
+  currTime.textContent=`(${live.time})`;
 
-    Promise.all([ wxFetch(), fcFetch(model1), fcFetch(model2) ])
-      .then(([wx,f1,f2])=>{
-        const rows  = forecastRows;
-        const times = f1.hourly.time;
-
-        for(let i=0;i<times.length;i++){
-          /* tijd */
-          rows.insertAdjacentHTML('beforeend',
-            `<div class="py-1 border-b">${tOnly(times[i])}</div>`);
-
-          /* icoon */
-          rows.insertAdjacentHTML('beforeend',
-            `<div class="py-1 border-b">${wmo2emo(wx.hourly.weathercode[i])}</div>`);
-
-          /* twee modellen */
-          [f1,f2].forEach(f=>{
-            const v   = Math.round(f.hourly.wind_speed_10m[i]);
-            const g   = f.hourly.wind_gusts_10m ? Math.round(f.hourly.wind_gusts_10m[i]) : '–';
-            const dir = deg2card(f.hourly.wind_direction_10m[i]);
-
-            rows.insertAdjacentHTML('beforeend',
-              `<div class="py-1 border-b leading-tight">
-                 <span class="font-medium">${v}</span>
-                 <span class="text-[10px] ml-1 text-slate-500">${dir}</span><br>
-                 <span class="text-xs font-semibold" style="color:var(--brand)">${g}</span>
-               </div>`);
-          });
-        }
-      })
-      .catch(showErr);
-  })();
-  </script>
-</body>
-</html>
+  /* ---- Forecast table ---- */
+  const rows=$("#forecastRows"
